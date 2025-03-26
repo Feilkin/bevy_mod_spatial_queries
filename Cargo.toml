@@ -10,8 +10,27 @@ bevy = { version = "0.15", default-features = false }
 
 [dev-dependencies]
 # more bevy features are needed for the examples
-bevy = { version = "0.15", default-features = true }
-
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_gizmos",
+    "bevy_pbr",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_sprite",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_window",
+    "bevy_winit",
+    "custom_cursor",
+    "default_font",
+    "multi_threaded",
+    "sysinfo_plugin",
+] }
 # makes examples faster
 [profile.dev]
 opt-level = 3
