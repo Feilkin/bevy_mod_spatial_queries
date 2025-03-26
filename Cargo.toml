@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 authors = ["Ada Hieta <ada@hieta.fi>"]
+description = "Spatially aware Queries for the Bevy game engine"
+keywords = ["gamedev", "bevy", "spatial"]
+categories = ["game-development"]
 
 [dependencies]
 bevy = { version = "0.15", default-features = false }
