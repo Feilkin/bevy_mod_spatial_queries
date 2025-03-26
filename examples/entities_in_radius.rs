@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_mod_spatial_queries::{SpatialQueriesPlugin, SpatialQuery};
+use bevy_mod_spatial_queries::prelude::*;
 
 fn main() {
     let mut app = App::new();
