@@ -15,8 +15,7 @@ const LOOKUP_RADIUS: f32 = 10.0;
 fn main() {
     let mut app = App::new();
 
-    let mut app = app
-        .add_plugins(DefaultPlugins)
+    app.add_plugins(DefaultPlugins)
         .add_plugins(SpatialQueriesPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, change_color_on_hover);
@@ -50,18 +49,20 @@ fn setup(
     let default_material = materials.add(Color::linear_rgb(0.1, 0.1, 0.1));
     let hovered_material = materials.add(Color::linear_rgb(0.8, 0.8, 0.8));
 
-    let mesh = meshes.add(Circle::new(10.));
+    let mesh = meshes.add(Circle::new(CIRCLE_RADIUS));
 
-    for row in 0..72 {
-        for col in 0..128 {
+    let center_offset = Vec3::new(
+        CIRCLE_RADIUS * COLUMNS as f32 / 2.,
+        CIRCLE_RADIUS * ROWS as f32 / 2.,
+        0.,
+    );
+
+    for row in 0..ROWS {
+        for col in 0..COLUMNS {
             commands.spawn((
                 Mesh2d(mesh.clone()),
                 MeshMaterial2d(default_material.clone()),
-                Transform::from_translation(Vec3::new(
-                    col as f32 * 10. - 1280. / 2.,
-                    row as f32 * 10. - 720. / 2.,
-                    0.0,
-                )),
+                Transform::from_translation(Vec3::new(col as f32, row as f32, 0.0) - center_offset),
                 CircleMarker,
             ));
         }
@@ -94,7 +95,7 @@ fn change_color_on_hover(
         return;
     };
 
-    for mut circle_material in circles.in_radius(world_position.extend(0.), 20.) {
+    for mut circle_material in circles.in_radius(world_position.extend(0.), LOOKUP_RADIUS) {
         circle_material.0 = materials.hovered_material.clone();
     }
 }
