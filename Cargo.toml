@@ -2,6 +2,8 @@
 name = "bevy_mod_spatial_query"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+authors = ["Ada Hieta <ada@hieta.fi>"]
 
 [dependencies]
 bevy = { version = "0.15", default-features = false }
