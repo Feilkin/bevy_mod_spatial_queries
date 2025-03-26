@@ -1,9 +1,8 @@
 //! Spatially aware Queries for the Bevy game engine
 
-use bevy::ecs::query::{QueryData, QueryFilter};
-use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+mod algorithms;
 mod spatial_query;
 mod spatial_query_iterator;
 
@@ -22,59 +21,36 @@ impl Plugin for SpatialQueriesPlugin {
     }
 }
 
-pub struct SpatialQueryIterator<'w, 's, 'q, D: QueryData + 'static, F: QueryFilter + 'static> {
-    entities: Vec<Entity>,
-    query: &'q mut Query<'w, 's, D, F>,
+pub trait SpatialLookupAlgorithm {
+    /// Prepares the lookup algorithm with a fresh set of entities and their positions.
+    fn prepare(&mut self, entities: &[(Entity, Vec3)]);
+
+    /// Returns a list of all entities that are within the given radius of the sample point.
+    fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity>;
 }
 
-impl<'w, 's, 'q, D: QueryData + 'static, F: QueryFilter + 'static>
-    SpatialQueryIterator<'w, 's, 'q, D, F>
-{
-    fn with_entities(entities: Vec<Entity>, query: &'q mut Query<'w, 's, D, F>) -> Self {
-        SpatialQueryIterator { entities, query }
-    }
-}
-
-impl<'w, 's, 'q, D: QueryData + 'static, F: QueryFilter + 'static> Iterator
-    for SpatialQueryIterator<'w, 's, 'q, D, F>
-where
-    'w: 'q,
-    's: 'q,
-{
-    type Item = D::Item<'q>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(entity) = self.entities.pop() {
-            match unsafe { self.query.get_unchecked(entity) } {
-                Ok(data) => return Some(unsafe { std::mem::transmute(data) }),
-                Err(_) => continue,
-            }
-        }
-
-        None
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(self.entities.len()))
-    }
-}
-
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct SpatialLookupState {
     entities: Vec<(Entity, Vec3)>,
+    algorithm: Box<dyn SpatialLookupAlgorithm + Send + Sync>,
+}
+
+impl Default for SpatialLookupState {
+    fn default() -> Self {
+        SpatialLookupState {
+            entities: Vec::new(),
+            algorithm: Box::new(algorithms::Bvh::default()),
+        }
+    }
 }
 
 impl SpatialLookupState {
     pub fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity> {
-        let mut out = Vec::new();
+        self.algorithm.entities_in_radius(sample_point, radius)
+    }
 
-        for (entity, position) in &self.entities {
-            if position.distance(sample_point) < radius {
-                out.push(*entity);
-            }
-        }
-
-        out
+    pub fn prepare_algorithm(&mut self) {
+        self.algorithm.prepare(&self.entities);
     }
 }
 
@@ -89,4 +65,6 @@ fn build_spatial_lookup(
             .entities
             .push((entity.clone(), transform.translation()));
     }
+
+    lookup_state.prepare_algorithm();
 }
