@@ -1,5 +1,16 @@
+//! Example which shows how to use spatial queries to find entities in a radius.
+
 use bevy::prelude::*;
 use bevy_mod_spatial_queries::prelude::*;
+
+/// Number of rows of circles to spawn.
+const ROWS: usize = 72;
+/// Number of columns of circles to spawn.
+const COLUMNS: usize = 128;
+/// Radius of spawned circles.
+const CIRCLE_RADIUS: f32 = 5.0;
+/// Radius used when looking up nearby circles.
+const LOOKUP_RADIUS: f32 = 10.0;
 
 fn main() {
     let mut app = App::new();
@@ -13,15 +24,24 @@ fn main() {
     app.run();
 }
 
+/// Resource for storing the used materials.
+///
+/// This allows us to easily re-used to existing materials when swapping between
+/// hovered and default states. Re-using the materials also allows bevy to batch
+/// the circle draw calls, significantly improving rendering performance.
 #[derive(Resource)]
 struct ExampleMaterials {
+    /// Material for the default, non-hovered state.
     default_material: Handle<ColorMaterial>,
+    /// Material for the hovered state.
     hovered_material: Handle<ColorMaterial>,
 }
 
+/// Component used to mark the entities we want to find with our spatial query.
 #[derive(Component)]
 struct CircleMarker;
 
+/// System used to set up necessary entities and resources at application startup.
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -54,6 +74,7 @@ fn setup(
     });
 }
 
+/// System which changes the material of entities that are near the cursor using spatial queries.
 fn change_color_on_hover(
     camera_query: Single<(&Camera, &GlobalTransform)>,
     window: Query<&Window>,
