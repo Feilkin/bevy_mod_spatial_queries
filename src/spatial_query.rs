@@ -1,4 +1,5 @@
-use crate::{SpatialLookupState, SpatialQueryIterator};
+use crate::SpatialLookupState;
+use crate::spatial_query_iterator::SpatialQueryIterator;
 use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::system::SystemParam;
 use bevy::math::Vec3;

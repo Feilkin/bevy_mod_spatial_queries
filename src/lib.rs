@@ -5,10 +5,12 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 mod spatial_query;
+mod spatial_query_iterator;
 
 pub mod prelude {
     pub use crate::SpatialQueriesPlugin;
     pub use crate::spatial_query::SpatialQuery;
+    pub use crate::spatial_query_iterator::SpatialQueryIterator;
 }
 
 pub struct SpatialQueriesPlugin;
