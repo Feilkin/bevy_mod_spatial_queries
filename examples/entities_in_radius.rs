@@ -4,11 +4,11 @@ use bevy::prelude::*;
 use bevy_mod_spatial_queries::prelude::*;
 
 /// Number of rows of circles to spawn.
-const ROWS: usize = 72;
+const ROWS: usize = 720 / 4;
 /// Number of columns of circles to spawn.
-const COLUMNS: usize = 128;
+const COLUMNS: usize = 1280 / 4;
 /// Radius of spawned circles.
-const CIRCLE_RADIUS: f32 = 5.0;
+const CIRCLE_RADIUS: f32 = 2.0;
 /// Radius used when looking up nearby circles.
 const LOOKUP_RADIUS: f32 = 10.0;
 
@@ -52,8 +52,8 @@ fn setup(
     let mesh = meshes.add(Circle::new(CIRCLE_RADIUS));
 
     let center_offset = Vec3::new(
-        CIRCLE_RADIUS * COLUMNS as f32 / 2.,
-        CIRCLE_RADIUS * ROWS as f32 / 2.,
+        CIRCLE_RADIUS * 2. * COLUMNS as f32 / 2.,
+        CIRCLE_RADIUS * 2. * ROWS as f32 / 2.,
         0.,
     );
 
@@ -62,7 +62,13 @@ fn setup(
             commands.spawn((
                 Mesh2d(mesh.clone()),
                 MeshMaterial2d(default_material.clone()),
-                Transform::from_translation(Vec3::new(col as f32, row as f32, 0.0) - center_offset),
+                Transform::from_translation(
+                    Vec3::new(
+                        col as f32 * CIRCLE_RADIUS * 2.,
+                        row as f32 * CIRCLE_RADIUS * 2.,
+                        0.0,
+                    ) - center_offset,
+                ),
                 CircleMarker,
             ));
         }
