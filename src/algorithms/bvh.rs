@@ -3,8 +3,6 @@
 use crate::SpatialLookupAlgorithm;
 use bevy::math::FloatPow;
 use bevy::prelude::*;
-use bevy::tasks::{ParallelSlice, ParallelSliceMut, TaskPool};
-use std::cmp::{Ordering, max};
 
 type EntityPositionPair = (Entity, Vec3);
 
@@ -183,10 +181,6 @@ impl Aabb {
         max: Vec3::ZERO,
     };
 
-    pub fn centroid(&self) -> Vec3 {
-        self.min + (self.max - self.min) * 0.5
-    }
-
     pub fn total_surface_area(&self) -> f32 {
         let extents = self.max - self.min;
 
@@ -243,9 +237,9 @@ impl BvhNode {
         let mut dmin = 0.;
 
         for axis in 0..3 {
-            if (sample_point[axis] < self.aabb.min[axis]) {
+            if sample_point[axis] < self.aabb.min[axis] {
                 dmin += (sample_point[axis] - self.aabb.min[axis]).squared();
-            } else if (sample_point[axis] > self.aabb.max[axis]) {
+            } else if sample_point[axis] > self.aabb.max[axis] {
                 dmin += (sample_point[axis] - self.aabb.max[axis]).squared();
             }
         }
