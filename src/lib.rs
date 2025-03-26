@@ -1,5 +1,50 @@
 //! Spatially aware Queries for the Bevy game engine
-
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use bevy_mod_spatial_queries::prelude::*;
+//!
+//! # struct Mouse { position: Vec3 }
+//! # struct Circle;
+//!
+//! fn change_color_on_hover(
+//!      mouse: Single<Mouse>,
+//!      mut circles: SpatialQuery<&mut Circle>,
+//!  ) {
+//!      for mut circle in circles.in_radius(mouse.position, 10.) {
+//!          // Do something with the circle..
+//!      }
+//! }
+//! ```
+//!
+//! This crate aims to provide an ergonomic and fast way of performing spatial queries, i.e.
+//! "nearby entities" -type queries. "Spatial" here refers purely to the `GlobalPosition` of an
+//! entity, and does not consider things like meshes or collision shapes.
+//!
+//! By default, this crate uses a BVH-based lookup algorithm as a compromise between lookup speed
+//! and lookup preparation. Users can implement their own lookup algorithms by implementing the
+//! `SpatialLookupAlgorithm` trait, and inserting the `SpatialLookupState` resource like so:
+//! ```
+//! # use bevy::prelude::*;
+//! # use bevy_mod_spatial_queries::prelude::*;
+//! #
+//! # struct YourAwesomeAlgorithm;
+//! #
+//! # impl SpatialLookupAlgorithm for YourAwesomeAlgorithm {
+//! #     fn prepare(&mut self, entities: &[(Entity, Vec3)]) {
+//! #        todo!()
+//! #     }
+//! #
+//! #     fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity> {
+//! #         todo!()
+//! #     }
+//! # }
+//! #
+//! # let mut app = App::new();
+//!
+//! app.insert_resource(SpatialLookupState::with_algorithm(YourAwesomeAlgorithm));
+//! ```
+//!
 use bevy::prelude::*;
 
 mod algorithms;
@@ -7,32 +52,51 @@ mod spatial_query;
 mod spatial_query_iterator;
 
 pub mod prelude {
-    pub use crate::SpatialQueriesPlugin;
     pub use crate::spatial_query::SpatialQuery;
     pub use crate::spatial_query_iterator::SpatialQueryIterator;
+    pub use crate::{SpatialLookupAlgorithm, SpatialLookupState, SpatialQueriesPlugin};
 }
 
+/// Adds `SpatialQuery` support to bevy.
 pub struct SpatialQueriesPlugin;
+
+/// System set for systems used to set up the spatial lookup.
+///
+/// All systems using `SpatialQuery<_>` *MUST* be scheduled after this set, i.e.
+/// `.add_systems(First, your_awesome_system.after(PrepareSpatialLookup))`.
+///
+/// Manually specifying the `.after()` is only necessary for systems in the `First` schedule.
+#[derive(SystemSet, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct PrepareSpatialLookup;
 
 impl Plugin for SpatialQueriesPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SpatialLookupState::default())
-            .add_systems(First, build_spatial_lookup);
+            .add_systems(First, prepare_spatial_lookup.in_set(PrepareSpatialLookup));
     }
 }
 
+/// Trait for defining Spatial Lookup Algorithms to be used with `SpatialQuery<_>`.
 pub trait SpatialLookupAlgorithm {
     /// Prepares the lookup algorithm with a fresh set of entities and their positions.
+    ///
+    /// This gets called once per frame in the `First` schedule, and therefore
+    /// the implementation should be fairly fast. The algorithm should implement its own change
+    /// detection if necessary.
     fn prepare(&mut self, entities: &[(Entity, Vec3)]);
 
     /// Returns a list of all entities that are within the given radius of the sample point.
+    ///
+    /// This method *MUST* return all entities within the radius of the sample point, and it *MUST*
+    /// not return any entities outside of it.
     fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity>;
 }
 
+/// Resource which holds the configured `SpatialLookupAlgorithm` and relevant state.
 #[derive(Resource)]
 pub struct SpatialLookupState {
     entities: Vec<(Entity, Vec3)>,
-    algorithm: Box<dyn SpatialLookupAlgorithm + Send + Sync>,
+    pub algorithm: Box<dyn SpatialLookupAlgorithm + Send + Sync>,
 }
 
 impl Default for SpatialLookupState {
@@ -57,12 +121,16 @@ impl SpatialLookupState {
         self.algorithm.entities_in_radius(sample_point, radius)
     }
 
-    pub fn prepare_algorithm(&mut self) {
+    /// Prepares the configured algorithm for lookup.
+    fn prepare_algorithm(&mut self) {
         self.algorithm.prepare(&self.entities);
     }
 }
 
-fn build_spatial_lookup(
+/// Prepares the configured spatial lookup algorithm.
+///
+/// Any systems using `SpatialQuery<_>` *MUST* be scheduled after this system
+fn prepare_spatial_lookup(
     all_entities: Query<(Entity, &GlobalTransform)>,
     mut lookup_state: ResMut<SpatialLookupState>,
 ) {
