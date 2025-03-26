@@ -37,6 +37,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "multi_threaded",
     "sysinfo_plugin",
     "bevy_ci_testing",
+    "x11",
 ] }
 # makes examples faster
 [profile.dev]

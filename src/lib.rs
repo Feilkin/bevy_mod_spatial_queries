@@ -4,16 +4,18 @@
 //! # use bevy::prelude::*;
 //! # use bevy_mod_spatial_query::prelude::*;
 //!
+//! # #[derive(Component)]
 //! # struct Mouse { position: Vec3 }
+//! # #[derive(Component)]
 //! # struct Circle;
 //!
 //! fn change_color_on_hover(
-//!      mouse: Single<Mouse>,
+//!      mouse: Single<&Mouse>,
 //!      mut circles: SpatialQuery<&mut Circle>,
 //!  ) {
-//!      for mut circle in circles.in_radius(mouse.position, 10.) {
-//!          // Do something with the circle..
-//!      }
+//!     for mut circle in circles.in_radius(mouse.position, 10.) {
+//!         // Do something with the circle..
+//!     }
 //! }
 //! ```
 //!
