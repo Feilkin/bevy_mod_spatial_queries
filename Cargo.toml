@@ -7,6 +7,9 @@ authors = ["Ada Hieta <ada@hieta.fi>"]
 description = "Spatially aware Queries for the Bevy game engine"
 keywords = ["gamedev", "bevy", "spatial"]
 categories = ["game-development"]
+homepage = "https://github.com/Feilkin/bevy_mod_spatial_query"
+repository = "https://github.com/Feilkin/bevy_mod_spatial_query"
+readme = "README.md"
 
 [dependencies]
 bevy = { version = "0.15", default-features = false }
