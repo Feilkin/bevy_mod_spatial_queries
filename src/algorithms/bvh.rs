@@ -28,7 +28,8 @@ type EntityPositionPair = (Entity, Vec3);
 pub struct Bvh {
     /// Maximum number of entities per leaf node.
     pub entities_per_leaf: usize,
-    /// Maximum number of test splits performed per axis
+    /// Maximum number of test splits performed per axis. Larger number results in better (=faster)
+    /// tree structure but makes tree generation slower.
     pub max_split_samples_per_axis: usize,
     root: Option<BvhNode>,
 }
@@ -36,7 +37,7 @@ pub struct Bvh {
 impl Default for Bvh {
     fn default() -> Self {
         Bvh {
-            entities_per_leaf: 10,
+            entities_per_leaf: 1000,
             max_split_samples_per_axis: 10,
             root: None,
         }
