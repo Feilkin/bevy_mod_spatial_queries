@@ -139,7 +139,7 @@ fn prepare_spatial_lookup(
     for (entity, transform) in &all_entities {
         lookup_state
             .entities
-            .push((entity.clone(), transform.translation()));
+            .push((entity, transform.translation()));
     }
 
     lookup_state.prepare_algorithm();

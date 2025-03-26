@@ -25,7 +25,9 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(entity) = self.entities.pop() {
             match unsafe { self.query.get_unchecked(entity) } {
-                Ok(data) => return Some(unsafe { std::mem::transmute(data) }),
+                Ok(data) => {
+                    return Some(unsafe { std::mem::transmute::<D::Item<'_>, D::Item<'q>>(data) });
+                }
                 Err(_) => continue,
             }
         }
