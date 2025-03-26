@@ -1,0 +1,11 @@
+[package]
+name = "bevy_mod_spatial_queries"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.15", default-features = false }
+
+[dev-dependencies]
+# more bevy features are needed for the examples
+bevy = { version = "0.15", default-features = true }
