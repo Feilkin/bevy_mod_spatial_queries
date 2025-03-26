@@ -45,6 +45,14 @@ impl Default for SpatialLookupState {
 }
 
 impl SpatialLookupState {
+    pub fn with_algorithm<T: SpatialLookupAlgorithm + Send + Sync + 'static>(algorithm: T) -> Self {
+        Self {
+            entities: vec![],
+            algorithm: Box::new(algorithm),
+        }
+    }
+
+    /// Returns a list of entities in the radius of the sample point.
     pub fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity> {
         self.algorithm.entities_in_radius(sample_point, radius)
     }
