@@ -9,8 +9,7 @@ type EntityPositionPair = (Entity, Vec3);
 /// Bounding Volume Hierarchy -based spatial acceleration algorithm.
 ///
 /// This implementation uses Surface Area Heuristic for splitting the space. Maximum number of
-/// splits to sample can be configured with the `max_split_samples_per_axis` field. A reasonable
-/// default of 10 is provided.
+/// splits to sample can be configured with the `max_split_samples_per_axis` field.
 ///
 /// Number of entities per leaf node is controlled by the `entities_per_leaf` field. Storing higher
 /// number of entities per field results in smaller tree structure, faster tree building and
