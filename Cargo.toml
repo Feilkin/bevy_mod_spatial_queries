@@ -1,5 +1,5 @@
 [package]
-name = "bevy_mod_spatial_queries"
+name = "bevy_mod_spatial_query"
 version = "0.1.0"
 edition = "2024"
 

@@ -2,7 +2,7 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use bevy_mod_spatial_queries::prelude::*;
+//! # use bevy_mod_spatial_query::prelude::*;
 //!
 //! # struct Mouse { position: Vec3 }
 //! # struct Circle;
@@ -26,7 +26,7 @@
 //! `SpatialLookupAlgorithm` trait, and inserting the `SpatialLookupState` resource like so:
 //! ```
 //! # use bevy::prelude::*;
-//! # use bevy_mod_spatial_queries::prelude::*;
+//! # use bevy_mod_spatial_query::prelude::*;
 //! #
 //! # struct YourAwesomeAlgorithm;
 //! #

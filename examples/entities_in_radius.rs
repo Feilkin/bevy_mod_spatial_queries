@@ -1,7 +1,7 @@
 //! Example which shows how to use spatial queries to find entities in a radius.
 
 use bevy::prelude::*;
-use bevy_mod_spatial_queries::prelude::*;
+use bevy_mod_spatial_query::prelude::*;
 
 /// Number of rows of circles to spawn.
 const ROWS: usize = 720 / 4;
