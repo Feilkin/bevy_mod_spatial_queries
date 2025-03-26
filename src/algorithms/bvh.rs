@@ -1,4 +1,4 @@
-//! Bounding-Volume Hierarchy -accelerated spatial lookup
+//! Bounding Volume Hierarchy -accelerated spatial lookup
 
 use crate::SpatialLookupAlgorithm;
 use bevy::math::FloatPow;
@@ -8,6 +8,25 @@ use std::cmp::{Ordering, max};
 
 type EntityPositionPair = (Entity, Vec3);
 
+/// Bounding Volume Hierarchy -based spatial acceleration algorithm.
+///
+/// This implementation uses Surface Area Heuristic for splitting the space. Maximum number of
+/// splits to sample can be configured with the `max_split_samples_per_axis` field. A reasonable
+/// default of 10 is provided.
+///
+/// Number of entities per leaf node is controlled by the `entities_per_leaf` field. Storing higher
+/// number of entities per field results in smaller tree structure, faster tree building and
+/// traversal, but slower final entity filtering.
+///
+/// Spatial lookups with the BVH structure can be split into two phases: tree traversal and final
+/// filtering.
+///
+/// During the traversal, the BVH tree is traversed starting from the node, and each node
+/// that intersects with the query (radius, aabb, etc) is entered.
+///
+/// For each entered node, if it is a leaf node, each contained entity is then filtered against the
+/// query (radius, aabb, etc) to remove entities which are contained in the leaf node but do not
+/// actually intersect the query.
 pub struct Bvh {
     /// Maximum number of entities per leaf node.
     pub entities_per_leaf: usize,
@@ -50,7 +69,10 @@ impl SpatialLookupAlgorithm for Bvh {
     }
 }
 
-/// Recursively splits a slit of Entity, Position pairs into BVH nodes.
+/// Recursively splits a slice of Entity, Position pairs into BVH nodes.
+///
+/// This implementation uses the Surface Area Heuristic with a user-controllable amount of
+/// split samples.
 fn split_node(
     entities: &[EntityPositionPair],
     entities_per_leaf: usize,
@@ -83,6 +105,7 @@ fn split_node(
         find_split_index_and_cost(&entities, max_split_samples_per_axis)
     };
 
+    // split entities at the index of best split
     let (left, right) =
         if x_index_and_cost.1 < y_index_and_cost.1 && x_index_and_cost.1 < z_index_and_cost.1 {
             entities.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
@@ -103,6 +126,7 @@ fn split_node(
     }
 }
 
+/// Find the best split index and the resulting cost of the sorted `entities` slice.
 fn find_split_index_and_cost(
     entities: &[EntityPositionPair],
     max_split_samples_per_axis: usize,
@@ -123,6 +147,9 @@ fn find_split_index_and_cost(
     min
 }
 
+/// Surface Area Heuristic.
+///
+/// The cost is based on the surface areas of the two resulting AABB shapes.
 fn cost(entities: &[EntityPositionPair], index: usize) -> f32 {
     let (left, right) = entities.split_at(index);
 
@@ -142,8 +169,11 @@ fn calculate_aabb(entities: &[EntityPositionPair]) -> Aabb {
     aabb
 }
 
+/// Axis-Aligned Bounding Box.
 struct Aabb {
+    /// Left-bottom corner of the AABB
     min: Vec3,
+    /// Top-right corner of the AABB
     max: Vec3,
 }
 
@@ -169,12 +199,17 @@ enum BvhNodeKind {
     Branch(Box<BvhNode>, Box<BvhNode>),
 }
 
+/// Node of the BVH tree.
+///
+/// Each node contains an AABB (the chosen bounding volume),
+/// and either a list of entities or 2 child nodes.
 struct BvhNode {
     aabb: Aabb,
     kind: BvhNodeKind,
 }
 
 impl BvhNode {
+    /// Returns a list of entities that are in radius of the given sample point.
     fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity> {
         if !self.intersects_sphere(sample_point, radius) {
             return Vec::new();
