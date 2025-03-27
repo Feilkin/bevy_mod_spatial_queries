@@ -223,11 +223,6 @@ struct Aabb {
 }
 
 impl Aabb {
-    const ZERO: Aabb = Aabb {
-        min: Vec3::ZERO,
-        max: Vec3::ZERO,
-    };
-
     pub fn total_surface_area(&self) -> f32 {
         let extents = self.max - self.min;
 
