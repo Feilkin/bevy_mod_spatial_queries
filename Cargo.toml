@@ -16,7 +16,7 @@ readme = "README.md"
 bench = false
 
 [dependencies]
-bevy = { version = "0.15", default-features = false }
+bevy = { version = "0.15", default-features = false, features = ["bevy_color", "bevy_gizmos"] }
 
 [dev-dependencies]
 # more bevy features are needed for the examples
