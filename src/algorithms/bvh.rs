@@ -3,6 +3,7 @@
 use crate::SpatialLookupAlgorithm;
 use bevy::math::FloatPow;
 use bevy::prelude::*;
+use bevy::render::render_resource::encase::private::RuntimeSizedArray;
 
 type EntityPositionPair = (Entity, Vec3);
 
@@ -31,6 +32,7 @@ pub struct Bvh {
     /// tree structure but makes tree generation slower.
     pub max_split_samples_per_axis: usize,
     root: Option<BvhNode>,
+    tree_depth: usize,
 }
 
 impl Default for Bvh {
@@ -39,6 +41,7 @@ impl Default for Bvh {
             entities_per_leaf: 1000,
             max_split_samples_per_axis: 10,
             root: None,
+            tree_depth: 0,
         }
     }
 }
@@ -49,8 +52,10 @@ impl SpatialLookupAlgorithm for Bvh {
             entities,
             self.entities_per_leaf,
             self.max_split_samples_per_axis,
+            0,
         );
 
+        self.tree_depth = root.count_depth();
         self.root = Some(root);
     }
 
@@ -65,6 +70,12 @@ impl SpatialLookupAlgorithm for Bvh {
             Vec::new()
         }
     }
+
+    fn debug_gizmos(&self, gizmos: &mut Gizmos) {
+        if let Some(root) = &self.root {
+            root.draw_gizmos(gizmos, 0, self.tree_depth);
+        }
+    }
 }
 
 /// Recursively splits a slice of Entity, Position pairs into BVH nodes.
@@ -75,6 +86,7 @@ fn split_node(
     entities: &[EntityPositionPair],
     entities_per_leaf: usize,
     max_split_samples_per_axis: usize,
+    current_depth: usize,
 ) -> BvhNode {
     assert!(!entities.is_empty());
 
@@ -104,19 +116,29 @@ fn split_node(
     };
 
     // split entities at the index of best split
-    let (left, right) =
+    let ((left, right), split_at) =
         if x_index_and_cost.1 < y_index_and_cost.1 && x_index_and_cost.1 < z_index_and_cost.1 {
             entities.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
-            entities.split_at(x_index_and_cost.0)
+            (entities.split_at(x_index_and_cost.0), x_index_and_cost.0)
         } else if y_index_and_cost.1 < z_index_and_cost.1 {
             entities.sort_by(|a, b| a.1.y.total_cmp(&b.1.y));
-            entities.split_at(y_index_and_cost.0)
+            (entities.split_at(y_index_and_cost.0), y_index_and_cost.0)
         } else {
-            entities.split_at(z_index_and_cost.0)
+            (entities.split_at(z_index_and_cost.0), z_index_and_cost.0)
         };
 
-    let left_node = split_node(left, entities_per_leaf, max_split_samples_per_axis);
-    let right_node = split_node(right, entities_per_leaf, max_split_samples_per_axis);
+    let left_node = split_node(
+        left,
+        entities_per_leaf,
+        max_split_samples_per_axis,
+        current_depth + 1,
+    );
+    let right_node = split_node(
+        right,
+        entities_per_leaf,
+        max_split_samples_per_axis,
+        current_depth + 1,
+    );
 
     BvhNode {
         aabb,
@@ -135,7 +157,7 @@ fn find_split_index_and_cost(
     let step = entities.len() / samples;
 
     let mut min = (1, f32::INFINITY);
-    for i in (1..entities.len()).step_by(step) {
+    for i in (1..entities.len() - 1).step_by(step) {
         let current_cost = cost(entities, i);
         if current_cost < min.1 {
             min = (i, current_cost);
@@ -151,23 +173,38 @@ fn find_split_index_and_cost(
 fn cost(entities: &[EntityPositionPair], index: usize) -> f32 {
     let (left, right) = entities.split_at(index);
 
-    calculate_aabb(left).total_surface_area() * (index as f32)
-        + calculate_aabb(right).total_surface_area() * (entities.len() - index) as f32
+    let left_aabb = calculate_aabb(left);
+    let right_aabb = calculate_aabb(right);
+
+    let left_surface_area = left_aabb.total_surface_area();
+    let right_surface_area = right_aabb.total_surface_area();
+
+    let left_cost = left_surface_area * (left.len() as f32);
+    let right_cost = right_surface_area * (right.len() as f32);
+
+    left_cost + right_cost
 }
 
 /// Calculates the Axis-Aligned Bounding Box for a set of points.
 fn calculate_aabb(entities: &[EntityPositionPair]) -> Aabb {
-    let mut aabb = Aabb::ZERO;
+    assert!(!entities.is_empty());
+
+    let mut min_point = entities[0].1;
+    let mut max_point = entities[0].1;
 
     for (_, position) in entities {
-        aabb.min = aabb.min.min(*position);
-        aabb.max = aabb.max.max(*position);
+        min_point = min_point.min(*position);
+        max_point = max_point.max(*position);
     }
 
-    aabb
+    Aabb {
+        min: min_point,
+        max: max_point,
+    }
 }
 
 /// Axis-Aligned Bounding Box.
+#[derive(Debug, Clone)]
 struct Aabb {
     /// Left-bottom corner of the AABB
     min: Vec3,
@@ -231,6 +268,7 @@ impl BvhNode {
     }
 
     /// Returns true if this node intersects given sphere.
+    #[inline]
     fn intersects_sphere(&self, sample_point: Vec3, radius: f32) -> bool {
         // implementation is based on Jim Arvo's algorithm from "Graphics Gems".
         // http://web.archive.org/web/20100323053111/http://www.ics.uci.edu/~arvo/code/BoxSphereIntersect.c
@@ -245,5 +283,34 @@ impl BvhNode {
         }
 
         dmin <= radius.squared()
+    }
+
+    fn count_depth(&self) -> usize {
+        match &self.kind {
+            BvhNodeKind::Leaf(_) => 1,
+            BvhNodeKind::Branch(left, right) => 1 + left.count_depth().max(right.count_depth()),
+        }
+    }
+
+    fn draw_gizmos(&self, gizmos: &mut Gizmos, level: usize, max_depth: usize) {
+        let cuboid_centroid = self.aabb.min.midpoint(self.aabb.max);
+        let cuboid_scale = Vec3::new(
+            self.aabb.max.x - self.aabb.min.x,
+            self.aabb.max.y - self.aabb.min.y,
+            self.aabb.max.z - self.aabb.min.z,
+        );
+
+        match &self.kind {
+            BvhNodeKind::Leaf(_) => {
+                gizmos.cuboid(
+                    Transform::from_translation(cuboid_centroid).with_scale(cuboid_scale),
+                    Color::hsv((level as f32) / (max_depth as f32) * 360., 0.8, 1.0),
+                );
+            }
+            BvhNodeKind::Branch(left, right) => {
+                left.draw_gizmos(gizmos, level + 1, max_depth);
+                right.draw_gizmos(gizmos, level + 1, max_depth);
+            }
+        }
     }
 }

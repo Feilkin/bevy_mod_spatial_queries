@@ -49,7 +49,7 @@
 //!
 use bevy::prelude::*;
 
-mod algorithms;
+pub mod algorithms;
 mod spatial_query;
 mod spatial_query_iterator;
 
@@ -92,6 +92,9 @@ pub trait SpatialLookupAlgorithm {
     /// This method *MUST* return all entities within the radius of the sample point, and it *MUST*
     /// not return any entities outside of it.
     fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity>;
+
+    /// Draw debug gizmos
+    fn debug_gizmos(&self, gizmos: &mut Gizmos) {}
 }
 
 /// Resource which holds the configured `SpatialLookupAlgorithm` and relevant state.
@@ -132,7 +135,7 @@ impl SpatialLookupState {
 /// Prepares the configured spatial lookup algorithm.
 ///
 /// Any systems using `SpatialQuery<_>` *MUST* be scheduled after this system
-fn prepare_spatial_lookup(
+pub fn prepare_spatial_lookup(
     all_entities: Query<(Entity, &GlobalTransform)>,
     mut lookup_state: ResMut<SpatialLookupState>,
 ) {
@@ -145,4 +148,8 @@ fn prepare_spatial_lookup(
     }
 
     lookup_state.prepare_algorithm();
+}
+
+pub fn draw_spatial_lookup_gizmos(lookup_state: Res<SpatialLookupState>, mut gizmos: Gizmos) {
+    lookup_state.algorithm.debug_gizmos(&mut gizmos);
 }

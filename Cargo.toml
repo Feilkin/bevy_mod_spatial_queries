@@ -11,12 +11,16 @@ homepage = "https://github.com/Feilkin/bevy_mod_spatial_query"
 repository = "https://github.com/Feilkin/bevy_mod_spatial_query"
 readme = "README.md"
 
+[lib]
+# Disable benchmarks because we use Criterion.rs for benchmarking
+bench = false
+
 [dependencies]
 bevy = { version = "0.15", default-features = false }
 
 [dev-dependencies]
 # more bevy features are needed for the examples
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.15.3", default-features = false, features = [
     "bevy_asset",
     "bevy_color",
     "bevy_core_pipeline",
@@ -36,10 +40,16 @@ bevy = { version = "0.15", default-features = false, features = [
     "default_font",
     "multi_threaded",
     "sysinfo_plugin",
-    "bevy_ci_testing",
     "x11",
 ] }
+criterion = "0.5.1"
+turborand = "0.10.1"
+
 # makes examples faster
 [profile.dev]
 opt-level = 3
 lto = "off"
+
+[[bench]]
+name = "benchmarks"
+harness = false
