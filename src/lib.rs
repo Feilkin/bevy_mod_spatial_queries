@@ -3,12 +3,12 @@
 //! ```
 //! # use bevy::prelude::*;
 //! # use bevy_mod_spatial_query::prelude::*;
-//!
+//! #
 //! # #[derive(Component)]
 //! # struct Mouse { position: Vec3 }
 //! # #[derive(Component)]
 //! # struct Circle;
-//!
+//! #
 //! fn change_color_on_hover(
 //!      mouse: Single<&Mouse>,
 //!      mut circles: SpatialQuery<&mut Circle>,
@@ -23,9 +23,11 @@
 //! "nearby entities" -type queries. "Spatial" here refers purely to the `GlobalPosition` of an
 //! entity, and does not consider things like meshes or collision shapes.
 //!
-//! By default, this crate uses a BVH-based lookup algorithm as a compromise between lookup speed
-//! and lookup preparation. Users can implement their own lookup algorithms by implementing the
-//! `SpatialLookupAlgorithm` trait, and inserting the `SpatialLookupState` resource like so:
+//! By default, this crate uses a naive lookup algorithm as it outperforms more advanced algorithms
+//! for simple (less than 1 000 000 entities) scenes with few (less than 100) queries. A BVH-based
+//! algorithm is also provided, but it is only useful for scenes with many (100 000 000+) entities
+//! or very many queries (10 000+). Users can implement their own lookup algorithms by implementing
+//! the `SpatialLookupAlgorithm` trait, and inserting the `SpatialLookupState` resource like so:
 //! ```
 //! # use bevy::prelude::*;
 //! # use bevy_mod_spatial_query::prelude::*;
@@ -43,7 +45,7 @@
 //! # }
 //! #
 //! # let mut app = App::new();
-//!
+//! #
 //! app.insert_resource(SpatialLookupState::with_algorithm(YourAwesomeAlgorithm));
 //! ```
 //!
@@ -108,7 +110,7 @@ impl Default for SpatialLookupState {
     fn default() -> Self {
         SpatialLookupState {
             entities: Vec::new(),
-            algorithm: Box::new(algorithms::Bvh::default()),
+            algorithm: Box::new(algorithms::Naive::default()),
         }
     }
 }
