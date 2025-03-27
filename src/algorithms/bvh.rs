@@ -1,9 +1,9 @@
 //! Bounding Volume Hierarchy -accelerated spatial lookup
 
 use crate::SpatialLookupAlgorithm;
-use bevy::math::FloatPow;
+use bevy::math::{FloatOrd, FloatPow};
 use bevy::prelude::*;
-use bevy::render::render_resource::encase::private::RuntimeSizedArray;
+use bevy::tasks::TaskPool;
 
 type EntityPositionPair = (Entity, Vec3);
 
@@ -25,6 +25,7 @@ type EntityPositionPair = (Entity, Vec3);
 /// For each entered node, if it is a leaf node, each contained entity is then filtered against the
 /// query (radius, aabb, etc) to remove entities which are contained in the leaf node but do not
 /// actually intersect the query.
+#[derive(Debug)]
 pub struct Bvh {
     /// Maximum number of entities per leaf node.
     pub entities_per_leaf: usize,
@@ -33,15 +34,17 @@ pub struct Bvh {
     pub max_split_samples_per_axis: usize,
     root: Option<BvhNode>,
     tree_depth: usize,
+    task_pool: TaskPool,
 }
 
 impl Default for Bvh {
     fn default() -> Self {
         Bvh {
-            entities_per_leaf: 1000,
+            entities_per_leaf: 10_000,
             max_split_samples_per_axis: 10,
             root: None,
             tree_depth: 0,
+            task_pool: TaskPool::new(),
         }
     }
 }
@@ -52,7 +55,7 @@ impl SpatialLookupAlgorithm for Bvh {
             entities,
             self.entities_per_leaf,
             self.max_split_samples_per_axis,
-            0,
+            &self.task_pool,
         );
 
         self.tree_depth = root.count_depth();
@@ -86,7 +89,7 @@ fn split_node(
     entities: &[EntityPositionPair],
     entities_per_leaf: usize,
     max_split_samples_per_axis: usize,
-    current_depth: usize,
+    task_pool: &TaskPool,
 ) -> BvhNode {
     assert!(!entities.is_empty());
 
@@ -101,44 +104,51 @@ fn split_node(
         };
     }
 
+    let sort_by_axis = |axis: usize, entities: &mut [EntityPositionPair]| {
+        entities.sort_unstable_by_key(|(_entity, position)| FloatOrd(position[axis]));
+    };
+
     // find the axis of best split
-    let x_index_and_cost = {
-        entities.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
-        find_split_index_and_cost(&entities, max_split_samples_per_axis)
-    };
-    let y_index_and_cost = {
-        entities.sort_by(|a, b| a.1.y.total_cmp(&b.1.y));
-        find_split_index_and_cost(&entities, max_split_samples_per_axis)
-    };
-    let z_index_and_cost = {
-        entities.sort_by(|a, b| a.1.z.total_cmp(&b.1.z));
-        find_split_index_and_cost(&entities, max_split_samples_per_axis)
-    };
+    // TODO: to support 2D BVHs, all we have to do is use the first 2 axis instead of all 3.
+    let costs: Vec<(usize, f32)> = (0..3)
+        .map(|axis| {
+            sort_by_axis(axis, &mut entities);
+            find_split_index_and_cost(&entities, max_split_samples_per_axis)
+        })
+        .collect();
+
+    let (axis, (split_at, _cost)) = costs
+        .iter()
+        .enumerate()
+        .min_by_key(|(_axis, (_split_at, cost))| FloatOrd(*cost))
+        .unwrap();
 
     // split entities at the index of best split
-    let ((left, right), split_at) =
-        if x_index_and_cost.1 < y_index_and_cost.1 && x_index_and_cost.1 < z_index_and_cost.1 {
-            entities.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
-            (entities.split_at(x_index_and_cost.0), x_index_and_cost.0)
-        } else if y_index_and_cost.1 < z_index_and_cost.1 {
-            entities.sort_by(|a, b| a.1.y.total_cmp(&b.1.y));
-            (entities.split_at(y_index_and_cost.0), y_index_and_cost.0)
-        } else {
-            (entities.split_at(z_index_and_cost.0), z_index_and_cost.0)
-        };
+    sort_by_axis(axis, &mut entities);
+    let (left, right) = entities.split_at(*split_at);
 
-    let left_node = split_node(
-        left,
-        entities_per_leaf,
-        max_split_samples_per_axis,
-        current_depth + 1,
-    );
-    let right_node = split_node(
-        right,
-        entities_per_leaf,
-        max_split_samples_per_axis,
-        current_depth + 1,
-    );
+    let mut nodes = task_pool.scope(|scope| {
+        scope.spawn(async move {
+            split_node(
+                left,
+                entities_per_leaf,
+                max_split_samples_per_axis,
+                task_pool,
+            )
+        });
+        scope.spawn(async move {
+            split_node(
+                right,
+                entities_per_leaf,
+                max_split_samples_per_axis,
+                task_pool,
+            )
+        });
+    });
+    assert_eq!(nodes.len(), 2);
+    // Unwrap is fine because of the assert above
+    let right_node = nodes.pop().unwrap();
+    let left_node = nodes.pop().unwrap();
 
     BvhNode {
         aabb,
@@ -225,6 +235,7 @@ impl Aabb {
     }
 }
 
+#[derive(Debug, Clone)]
 enum BvhNodeKind {
     Leaf(Vec<EntityPositionPair>),
     Branch(Box<BvhNode>, Box<BvhNode>),
@@ -234,6 +245,7 @@ enum BvhNodeKind {
 ///
 /// Each node contains an AABB (the chosen bounding volume),
 /// and either a list of entities or 2 child nodes.
+#[derive(Debug, Clone)]
 struct BvhNode {
     aabb: Aabb,
     kind: BvhNodeKind,

@@ -11,7 +11,10 @@ use turborand::prelude::*;
 #[derive(Component, Debug)]
 struct Marker;
 
-const N_ELEMENTS_TO_TEST: &[usize] = &[100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
+#[derive(Component, Debug)]
+struct Dummy(u64);
+
+const N_ELEMENTS_TO_TEST: &[usize] = &[1_000, 10_000, 100_000, 1_000_000];
 
 const WORLD_SIZE: f32 = 10.0;
 const LOOKUP_RADIUS: f32 = 1.0;
@@ -31,6 +34,7 @@ fn world_with_n_entities(n: usize) -> World {
                 rng.f32_normalized() * WORLD_SIZE,
                 rng.f32_normalized() * WORLD_SIZE,
             ),
+            Dummy(0),
         ));
     }
 
@@ -67,17 +71,19 @@ fn world_with_naive(n: usize) -> (World, Schedule, Schedule) {
     (world, prepare_schedule, query_schedule)
 }
 
-fn system_with_spatial_query(mut entities: SpatialQuery<Entity, With<Marker>>) {
-    for entity in entities.in_radius(Vec3::ZERO, LOOKUP_RADIUS) {
-        black_box(entity);
+fn system_with_spatial_query(mut entities: SpatialQuery<&mut Dummy, With<Marker>>) {
+    for mut dummy in entities.in_radius(Vec3::ZERO, LOOKUP_RADIUS) {
+        dummy.0 += 1;
+        black_box(dummy);
     }
 }
 
 fn benchmark_prepare_with_bvh(c: &mut Criterion) {
     let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
-    let mut group = c.benchmark_group("benchmark_prepare_with_bvh");
+    let mut group = c.benchmark_group("BVH Prepare");
     group.sample_size(10);
     group.plot_config(plot_config);
+    group.sampling_mode(SamplingMode::Flat);
 
     for n in N_ELEMENTS_TO_TEST {
         group.throughput(Throughput::Elements(*n as u64));
@@ -91,13 +97,45 @@ fn benchmark_prepare_with_bvh(c: &mut Criterion) {
     }
 }
 
+fn benchmark_query_with_bvh(c: &mut Criterion) {
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
+    let mut group = c.benchmark_group("BVH Query");
+    group.sample_size(100);
+    group.plot_config(plot_config);
+
+    for n in N_ELEMENTS_TO_TEST {
+        group.throughput(Throughput::Elements(*n as u64));
+        group.bench_function(BenchmarkId::from_parameter(*n), |b| {
+            b.iter_batched_ref(
+                || {
+                    let (mut world, mut prepare_schedule, query_schedule) = world_with_bvh(*n);
+                    prepare_schedule.run(&mut world);
+
+                    (world, prepare_schedule, query_schedule)
+                },
+                |(world, _, query_schedule)| query_schedule.run(world),
+                BatchSize::PerIteration,
+            );
+        });
+    }
+}
+
 fn compare_bvh_to_naive(c: &mut Criterion) {
     let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
 
     let mut group = c.benchmark_group("compare_bvh_to_naive");
-    group.sample_size(25);
+    group.sample_size(10);
     group.plot_config(plot_config);
     group.sampling_mode(SamplingMode::Flat);
+
+    let prepare_and_call_100_times =
+        |(world, prepare_schedule, query_schedule): &mut (World, Schedule, Schedule)| {
+            prepare_schedule.run(world);
+
+            for _ in 0..100 {
+                query_schedule.run(world);
+            }
+        };
 
     for n in N_ELEMENTS_TO_TEST {
         group.throughput(Throughput::Elements(*n as u64));
@@ -105,32 +143,25 @@ fn compare_bvh_to_naive(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("BVH", *n), |b| {
             b.iter_batched_ref(
                 || world_with_bvh(*n),
-                |(world, prepare_schedule, query_schedule)| {
-                    prepare_schedule.run(world);
-
-                    for _ in 0..100 {
-                        query_schedule.run(world);
-                    }
-                },
-                BatchSize::LargeInput,
+                prepare_and_call_100_times,
+                BatchSize::PerIteration,
             );
         });
 
         group.bench_function(BenchmarkId::new("Naive", *n), |b| {
             b.iter_batched_ref(
                 || world_with_naive(*n),
-                |(world, prepare_schedule, query_schedule)| {
-                    prepare_schedule.run(world);
-
-                    for _ in 0..100 {
-                        query_schedule.run(world);
-                    }
-                },
-                BatchSize::LargeInput,
+                prepare_and_call_100_times,
+                BatchSize::PerIteration,
             );
         });
     }
 }
 
-criterion_group!(benches, benchmark_prepare_with_bvh, compare_bvh_to_naive);
+criterion_group!(
+    benches,
+    benchmark_prepare_with_bvh,
+    benchmark_query_with_bvh,
+    compare_bvh_to_naive
+);
 criterion_main!(benches);
