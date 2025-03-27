@@ -94,7 +94,7 @@ pub trait SpatialLookupAlgorithm {
     fn entities_in_radius(&self, sample_point: Vec3, radius: f32) -> Vec<Entity>;
 
     /// Draw debug gizmos
-    fn debug_gizmos(&self, gizmos: &mut Gizmos) {}
+    fn debug_gizmos(&self, _gizmos: &mut Gizmos) {}
 }
 
 /// Resource which holds the configured `SpatialLookupAlgorithm` and relevant state.
