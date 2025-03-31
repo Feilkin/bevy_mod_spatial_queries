@@ -19,7 +19,7 @@ Spatially aware queries for the [Bevy](http://bevyengine.org/) game engine
 
 ## Usage
 
-````rust
+```rust
 use bevy::prelude::*;
 use bevy_mod_spatial_query::*;
 
@@ -44,7 +44,30 @@ fn your_awesome_system(
         // Do something with the lights...
     }
 }
-````
+```
+
+### Choosing a lookup algorithm
+
+By default, the crate uses a naive lookup algorithm, which simply iterates over all entities in the world and returns
+those matching the spatial query. This is actually the fastest way to do spatial queries for most use cases, and more
+advanced algorithms are only beneficial for cases where you need many (1000+) queries per frame, for example if
+implementing an SPH fluid simulation using entities. For these rare cases a BVH-based algorithm is provided.
+
+You are also free to implement your own lookup algorithms via the `SpatialLookupAlgorithm` trait.
+
+To set the used algorithm, add the plugin like so:
+
+```rust
+fn main() {
+    let mut app = App::new();
+
+    app.add_plugins(DefaultPlugins)
+        .insert_resource(SpatialLookupState::with_algorithm(Bvh::default()))
+        .add_plugins(SpatialQueryPlugin);
+
+    app.run();
+}
+```
 
 ## Contribution
 
