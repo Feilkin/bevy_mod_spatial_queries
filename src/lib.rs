@@ -102,7 +102,7 @@ pub trait SpatialLookupAlgorithm {
 /// Resource which holds the configured `SpatialLookupAlgorithm` and relevant state.
 #[derive(Resource)]
 pub struct SpatialLookupState {
-    entities: Vec<(Entity, Vec3)>,
+    pub entities: Vec<(Entity, Vec3)>,
     pub algorithm: Box<dyn SpatialLookupAlgorithm + Send + Sync>,
 }
 
@@ -129,7 +129,7 @@ impl SpatialLookupState {
     }
 
     /// Prepares the configured algorithm for lookup.
-    fn prepare_algorithm(&mut self) {
+    pub fn prepare_algorithm(&mut self) {
         self.algorithm.prepare(&self.entities);
     }
 }
