@@ -81,7 +81,7 @@ fn system_with_spatial_query(mut entities: SpatialQuery<&mut Dummy, With<Marker>
 fn benchmark_prepare_with_bvh(c: &mut Criterion) {
     let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
     let mut group = c.benchmark_group("BVH Prepare");
-    group.sample_size(10);
+    group.sample_size(100);
     group.plot_config(plot_config);
     group.sampling_mode(SamplingMode::Flat);
 
@@ -91,7 +91,7 @@ fn benchmark_prepare_with_bvh(c: &mut Criterion) {
             b.iter_batched_ref(
                 || world_with_bvh(*n),
                 |(world, prepare_schedule, _)| prepare_schedule.run(world),
-                BatchSize::PerIteration,
+                BatchSize::LargeInput,
             );
         });
     }
@@ -114,7 +114,49 @@ fn benchmark_query_with_bvh(c: &mut Criterion) {
                     (world, prepare_schedule, query_schedule)
                 },
                 |(world, _, query_schedule)| query_schedule.run(world),
-                BatchSize::PerIteration,
+                BatchSize::LargeInput,
+            );
+        });
+    }
+}
+
+fn benchmark_prepare_with_naive(c: &mut Criterion) {
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
+    let mut group = c.benchmark_group("Naive Prepare");
+    group.sample_size(100);
+    group.plot_config(plot_config);
+    group.sampling_mode(SamplingMode::Flat);
+
+    for n in N_ELEMENTS_TO_TEST {
+        group.throughput(Throughput::Elements(*n as u64));
+        group.bench_function(BenchmarkId::from_parameter(*n), |b| {
+            b.iter_batched_ref(
+                || world_with_naive(*n),
+                |(world, prepare_schedule, _)| prepare_schedule.run(world),
+                BatchSize::LargeInput,
+            );
+        });
+    }
+}
+
+fn benchmark_query_with_naive(c: &mut Criterion) {
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
+    let mut group = c.benchmark_group("Naive Query");
+    group.sample_size(100);
+    group.plot_config(plot_config);
+
+    for n in N_ELEMENTS_TO_TEST {
+        group.throughput(Throughput::Elements(*n as u64));
+        group.bench_function(BenchmarkId::from_parameter(*n), |b| {
+            b.iter_batched_ref(
+                || {
+                    let (mut world, mut prepare_schedule, query_schedule) = world_with_naive(*n);
+                    prepare_schedule.run(&mut world);
+
+                    (world, prepare_schedule, query_schedule)
+                },
+                |(world, _, query_schedule)| query_schedule.run(world),
+                BatchSize::LargeInput,
             );
         });
     }
@@ -124,7 +166,7 @@ fn compare_bvh_to_naive(c: &mut Criterion) {
     let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
 
     let mut group = c.benchmark_group("compare_bvh_to_naive");
-    group.sample_size(10);
+    group.sample_size(100);
     group.plot_config(plot_config);
     group.sampling_mode(SamplingMode::Flat);
 
@@ -144,7 +186,7 @@ fn compare_bvh_to_naive(c: &mut Criterion) {
             b.iter_batched_ref(
                 || world_with_bvh(*n),
                 prepare_and_call_100_times,
-                BatchSize::PerIteration,
+                BatchSize::LargeInput,
             );
         });
 
@@ -152,7 +194,7 @@ fn compare_bvh_to_naive(c: &mut Criterion) {
             b.iter_batched_ref(
                 || world_with_naive(*n),
                 prepare_and_call_100_times,
-                BatchSize::PerIteration,
+                BatchSize::LargeInput,
             );
         });
     }
@@ -162,6 +204,8 @@ criterion_group!(
     benches,
     benchmark_prepare_with_bvh,
     benchmark_query_with_bvh,
-    compare_bvh_to_naive
+    benchmark_prepare_with_naive,
+    benchmark_query_with_naive,
+    compare_bvh_to_naive,
 );
 criterion_main!(benches);
