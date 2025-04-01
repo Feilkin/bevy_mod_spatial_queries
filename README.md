@@ -1,9 +1,9 @@
 # bevy_mod_spatial_query
 
 ![Build Status](https://github.com/feilkin/bevy_mod_spatial_query/workflows/Rust/badge.svg)
-![Crates.io Version](https://img.shields.io/crates/v/bevy_mod_spatial_query?link=https%3A%2F%2Fcrates.io%2Fcrates%2Fbevy_mod_spatial_query)
-![docs.rs](https://img.shields.io/docsrs/bevy_mod_spatial_query?link=https%3A%2F%2Fdocs.rs%2Fbevy_mod_spatial_query%2Flatest%2Fbevy_mod_spatial_query%2F)
-![Static Badge](https://img.shields.io/badge/License-MIT-blue?link=https%3A%2F%2Fgithub.com%2FFeilkin%2Fbevy_mod_spatial_query%2Fblob%2Fmaster%2FLICENSE)
+![Crates.io Version](https://img.shields.io/crates/v/bevy_mod_spatial_query)
+![docs.rs](https://img.shields.io/docsrs/bevy_mod_spatial_query)
+![Static Badge](https://img.shields.io/badge/License-MIT-blue)
 
 Spatially aware queries for the [Bevy](http://bevyengine.org/) game engine
 
